@@ -2,10 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/twmb/franz-go/pkg/kgo"
 )
+
+type Log struct {
+	LogLevel    string `json:"log_level"`
+	ServiceName string `json:"service_name"`
+	Timestamp   string `json:"timestamp"`
+	Message     string `json:"message"`
+}
 
 func main() {
 	ctx := context.Background()
@@ -24,16 +32,21 @@ func main() {
 	}
 	defer cl.Close()
 
+	var log Log
 	for {
 		fetches := cl.PollFetches(ctx)
 		if errs := fetches.Errors(); len(errs) > 0 {
 			panic(fmt.Sprint(errs))
 		}
-
 		iter := fetches.RecordIter()
 		for !iter.Done() {
 			record := iter.Next()
-			fmt.Println(string(record.Value), "testing")
+
+			if err := json.Unmarshal(record.Value, &log); err != nil {
+				fmt.Printf("[WARNING]: failed to process message (poison pill?): %v\n", err)
+				continue
+			}
+			fmt.Printf("[%s] [%s] [%s]: %s\n", log.LogLevel, log.ServiceName, log.Timestamp, log.Message)
 		}
 	}
 }

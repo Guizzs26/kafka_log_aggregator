@@ -24,4 +24,7 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0 # No rebalance delay
       CLUSTER_ID: "Mk3OEYBSD34fcwNTJENDM2Qk" # Unique Kafka cluster ID
     volumes:
-      - ./data:/var/lib/kafka/data # Maps logs to local storage
+      - kafka_data:/var/lib/kafka/data # Maps logs to local storage
+
+volumes:
+  kafka_data:
