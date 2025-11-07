@@ -9,6 +9,8 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kadm"
@@ -29,10 +31,10 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	logger.Debug("starting main...")
 
-	serviceName := flag.String("serviceName", "DEFAULT", "idk the usage of this argument")
+	serviceName := flag.String("serviceName", "", "idk the usage of this argument")
 	flag.Parse()
 
-	if *serviceName == "" {
+	if strings.TrimSpace(*serviceName) == "" {
 		log.Fatalf("serviceName flag is required")
 	}
 
@@ -90,17 +92,35 @@ func main() {
 		logger.Debug("topic created successfully")
 	}
 
-	record := &kgo.Record{
-		Topic: "logs",
-		Value: b,
-	}
+	logger.Debug("producing message assynchronously...")
 
-	logger.Debug("producing message synchronously...")
-	if err := cl.ProduceSync(ctx, record).FirstErr(); err != nil {
-		logger.Error("record had a produce error", slog.Any("error", err))
-	} else {
-		logger.Debug("message produced successfully!")
+	var wg sync.WaitGroup
+	wg.Add(1000)
+	for range 1000 {
+		record := &kgo.Record{
+			Topic: "logs",
+			Value: b,
+		}
+
+		go func(record *kgo.Record) {
+			cl.Produce(ctx, record, func(r *kgo.Record, err error) {
+				defer wg.Done()
+				if err != nil {
+					logger.Error("record had a produce error", slog.Any("error", err))
+				} else {
+					logger.Debug("message produced successfully!")
+				}
+			})
+		}(record)
 	}
+	wg.Wait()
+
+	// logger.Debug("producing message synchronously...")
+	// if err := cl.ProduceSync(ctx, record).FirstErr(); err != nil {
+	// 	logger.Error("record had a produce error", slog.Any("error", err))
+	// } else {
+	// 	logger.Debug("message produced successfully!")
+	// }
 
 	logger.Debug("main finished")
 }
