@@ -13,16 +13,16 @@ import (
 )
 
 func main() {
+	ctx := context.Background()
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	logger.Debug("starting main...")
-
-	ctx := context.Background()
 
 	seeds := []string{"localhost:9092"}
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(seeds...),
 		kgo.DefaultProduceTopic("logs"),
-		kgo.ClientID("my-id"),
+		kgo.ClientID("producer-id"),
 	}
 
 	cl, err := kgo.NewClient(opts...)
